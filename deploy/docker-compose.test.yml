@@ -1,0 +1,27 @@
+name: currency-compass-test
+
+services:
+  db_test:
+    container_name: currency-compass-db-test
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: currency_compass
+      POSTGRES_PASSWORD: currency_compass
+      POSTGRES_DB: currency_compass_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U currency_compass -d currency_compass_test"]
+      interval: 5s
+      retries: 5
+
+  test:
+    container_name: currency-compass-test
+    build: ..
+    command: pytest
+    environment:
+      BOT_TOKEN: fake_token_for_tests
+      DATABASE_URL: postgresql+asyncpg://currency_compass:currency_compass@db_test:5432/currency_compass_test
+    depends_on:
+      db_test:
+        condition: service_healthy

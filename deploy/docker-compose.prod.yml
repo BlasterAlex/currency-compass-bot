@@ -1,0 +1,40 @@
+services:
+  db:
+    container_name: currency-compass-db
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: currency_compass
+      POSTGRES_PASSWORD: currency_compass
+      POSTGRES_DB: currency_compass
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U currency_compass"]
+      interval: 5s
+      retries: 5
+
+  migrate:
+    container_name: currency-compass-migrate
+    image: ghcr.io/blasteralex/currency-compass-bot:latest
+    entrypoint: ["alembic"]
+    command: ["upgrade", "head"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  bot:
+    container_name: currency-compass-bot
+    image: ghcr.io/blasteralex/currency-compass-bot:latest
+    command: ["bot.main"]
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

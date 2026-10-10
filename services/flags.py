@@ -70,9 +70,14 @@ def country_flag(country_code: str) -> str:
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in code)
 
 
+def currency_country(currency_code: str) -> str:
+    """ISO 3166 code for a currency flag, or empty when there is no flag."""
+    return _CURRENCY_COUNTRY.get(currency_code.upper(), "")
+
+
 def currency_flag(currency_code: str) -> str:
     """Return a flag emoji for an ISO currency code, or empty string."""
-    country = _CURRENCY_COUNTRY.get(currency_code.upper(), "")
+    country = currency_country(currency_code)
     if not country:
         return ""
     return country_flag(country)

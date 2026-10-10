@@ -23,6 +23,8 @@ docker compose -f deploy/docker-compose.prod.yml up -d
 
 Postgres в prod слушает `127.0.0.1:5433`, чтобы не пересекаться с PriceStation на `5432`.
 
+Алерты в Telegram собирает сервис `alerts`: [alerts/README.md](alerts/README.md).
+
 ## Чеклист первого запуска в прод
 
 1. Создать бота в @BotFather и записать токен в `deploy/.env` как `BOT_TOKEN`.

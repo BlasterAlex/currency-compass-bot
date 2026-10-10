@@ -2,7 +2,10 @@ from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from bot.metrics import db_errors_total
 
 
 class DbSessionMiddleware(BaseMiddleware):
@@ -15,6 +18,10 @@ class DbSessionMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        async with self.session_factory() as session:
-            data["session"] = session
-            return await handler(event, data)
+        try:
+            async with self.session_factory() as session:
+                data["session"] = session
+                return await handler(event, data)
+        except SQLAlchemyError:
+            db_errors_total.inc()
+            raise

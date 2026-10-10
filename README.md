@@ -3,22 +3,25 @@
 <div align="center">
   <img src="assets/logo.png" alt="Currency Compass Bot" width="200"/>
 
+[@CurrencyCompassBot](http://t.me/CurrencyCompassBot)
+
 [![CI](https://github.com/BlasterAlex/currency-compass-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/BlasterAlex/currency-compass-bot/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.12-blue)
+[![Coverage](https://codecov.io/gh/BlasterAlex/currency-compass-bot/branch/main/graph/badge.svg)](https://codecov.io/gh/BlasterAlex/currency-compass-bot)
+![Python](https://img.shields.io/badge/python-3.13-blue)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 </div>
 
 Telegram-бот для определения выгодного момента покупки иностранной валюты за российские рубли.
 
-Показывает официальный курс Банка России по валютам, которые пользователь выбирает сам. Операции покупки не выполняет:
+Показывает официальный курс ЦБ по валютам, которые пользователь выбирает сам. Операции покупки не выполняет:
 курс ЦБ - ориентир, а не цена в банке.
 
 ### Возможности
 
 - **Список валют:** поиск по коду ISO или русскому названию из дневного фида ЦБ
-- **Текущий курс:** цена за номинал ЦБ и за 1 единицу, если номинал не равен 1
+- **Текущий курс:** цена за номинал ЦБ
+- **График:** панели по выбранным валютам за период, с пиком и впадиной
 - **Флаги стран:** рядом с кодом валюты для быстрого чтения
-- **Меню команд:** `/start`, `/currencies`, `/rate` в меню Telegram
 
 ### Команды
 
@@ -27,6 +30,7 @@ Telegram-бот для определения выгодного момента 
 | `/start`      | О боте и список команд                |
 | `/currencies` | Управление списком валют              |
 | `/rate`       | Текущие курсы ЦБ по выбранным валютам |
+| `/chart`      | График курсов ЦБ за период            |
 
 ---
 
@@ -42,10 +46,10 @@ flowchart LR
     end
 
     BOT --> DB
-    BOT --> CBR[ЦБ РФ\nXML_daily]
+    BOT --> CBR[ЦБ РФ\nXML_daily / XML_dynamic]
 ```
 
-`bot` обрабатывает команды пользователя. Курсы берутся из дневного XML Банка России и кэшируются в памяти. Выбор валют
+`bot` обрабатывает команды пользователя. Курсы берутся из дневного XML ЦБ и кэшируются в памяти. Выбор валют
 хранится в PostgreSQL.
 
 ---
@@ -104,11 +108,14 @@ make lint
 
 Создайте `deploy/.env` перед запуском. Все переменные обязательны, если не указано иное.
 
-| Переменная     | Описание                                                    | По умолчанию |
-|----------------|-------------------------------------------------------------|--------------|
-| `BOT_TOKEN`    | Токен Telegram-бота от [@BotFather](https://t.me/BotFather) | -            |
-| `DATABASE_URL` | Строка подключения PostgreSQL (драйвер asyncpg)             | -            |
-| `LOG_LEVEL`    | Уровень логов (`DEBUG`, `INFO`, `WARNING`, `ERROR`)         | `INFO`       |
+| Переменная        | Описание                                                       | По умолчанию |
+|-------------------|----------------------------------------------------------------|--------------|
+| `BOT_TOKEN`       | Токен Telegram-бота от [@BotFather](https://t.me/BotFather)    | -            |
+| `DATABASE_URL`    | Строка подключения PostgreSQL (драйвер asyncpg)                | -            |
+| `LOG_LEVEL`       | Уровень логов (`DEBUG`, `INFO`, `WARNING`, `ERROR`)            | `INFO`       |
+| `METRICS_PORT`    | Порт `/metrics`                                                | `9100`       |
+| `ALERT_BOT_TOKEN` | Токен бота, которым Vector шлёт алерты. Нужен сервису `alerts` | -            |
+| `ALERT_CHAT_ID`   | Чат для этих алертов                                           | -            |
 
 Пример `deploy/.env`:
 
@@ -116,7 +123,12 @@ make lint
 BOT_TOKEN=123456:ABC-DEF...
 DATABASE_URL=postgresql+asyncpg://currency_compass:currency_compass@db:5432/currency_compass
 LOG_LEVEL=DEBUG
+METRICS_PORT=9100
 ```
+
+Метрики отдаются на `http://127.0.0.1:9100/metrics`. Сервис `alerts` забирает метрики и логи контейнера и пишет в Telegram.
+
+Подробнее: [`deploy/alerts/README.md`](deploy/alerts/README.md).
 
 ---
 

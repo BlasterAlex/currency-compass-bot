@@ -1,6 +1,14 @@
 from services.flags import currency_flag, currency_label
 
 
+def test_currency_flag_png_exists():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "assets" / "flags"
+    assert (root / "us.png").is_file()
+    assert (root / "uz.png").is_file()
+
+
 def test_currency_flag_usd():
     assert currency_flag("USD") == "🇺🇸"
 

@@ -1,0 +1,140 @@
+# Sources
+
+[sources.bot_logs]
+type = "docker_logs"
+include_containers = ["currency-compass-bot"]
+
+[sources.bot_metrics]
+type = "prometheus_scrape"
+endpoints = ["http://currency-compass-bot:9100/metrics"]
+scrape_interval_secs = 60
+
+# Log-based alerts
+
+[transforms.filter_log_errors]
+type = "filter"
+inputs = ["bot_logs"]
+condition.type = "vrl"
+condition.source = "match!(.message, r'ERROR|Exception|Traceback')"
+
+[transforms.throttle_log_errors]
+type = "throttle"
+inputs = ["filter_log_errors"]
+threshold = 1
+window_secs = 300
+
+[transforms.format_log_alert]
+type = "remap"
+inputs = ["throttle_log_errors"]
+source = '''
+  _msg = string!(.message)
+  .message = encode_json({
+    "chat_id": to_int!("${ALERT_CHAT_ID}"),
+    "text": "<b>Currency Compass</b>\n<pre>" + _msg + "</pre>",
+    "parse_mode": "HTML"
+  })
+'''
+
+# Metrics-based alerts
+
+[transforms.filter_error_metrics]
+type = "filter"
+inputs = ["bot_metrics"]
+condition.type = "vrl"
+condition.source = '.name == "cbr_requests_total" || .name == "db_errors_total" || .name == "bot_commands_total" || .name == "chart_errors_total" || .name == "chart_edit_failures_total" || .name == "chart_series_missing_total"'
+
+[transforms.detect_increases]
+type = "lua"
+inputs = ["filter_error_metrics"]
+version = "2"
+hooks.init = "init"
+hooks.process = "process"
+source = """
+function init()
+  _prev = {}
+end
+
+function process(event, emit)
+  local name = event.metric.name
+  local key = name
+  local tags_str = ""
+
+  if event.metric.tags then
+    for k, v in pairs(event.metric.tags) do
+      key = key .. "|" .. k .. "=" .. v
+      tags_str = tags_str .. " " .. k .. "=" .. v
+    end
+  end
+
+  local tags = event.metric.tags or {}
+
+  -- Successful CBR fetches and ordinary command results are not alerts.
+  if name == "cbr_requests_total" then
+    local result = tags.result or ""
+    if result ~= "http" and result ~= "error" then
+      _prev[key] = event.metric.counter and event.metric.counter.value or 0
+      return
+    end
+  end
+
+  if name == "bot_commands_total" then
+    local result = tags.result or ""
+    if result ~= "error" and result ~= "cbr_error" and result ~= "no_data" then
+      _prev[key] = event.metric.counter and event.metric.counter.value or 0
+      return
+    end
+  end
+
+  local current_val = (event.metric.counter and event.metric.counter.value) or 0
+  local prev_val = _prev[key]
+  _prev[key] = current_val
+
+  if prev_val ~= nil and current_val > prev_val then
+    emit({
+      log = {
+        metric_name = name,
+        tags_str = tags_str,
+        delta = tostring(math.floor(current_val - prev_val)),
+      }
+    })
+  end
+end
+"""
+
+[transforms.throttle_metric_alerts]
+type = "throttle"
+inputs = ["detect_increases"]
+threshold = 1
+window_secs = 300
+key_field = "metric_name"
+
+[transforms.format_metric_alert]
+type = "remap"
+inputs = ["throttle_metric_alerts"]
+source = '''
+  _name = string!(.metric_name)
+  _tags = string!(.tags_str)
+  _delta = string!(.delta)
+  .message = encode_json({
+    "chat_id": to_int!("${ALERT_CHAT_ID}"),
+    "text": "<b>Currency Compass</b>\n<code>" + _name + _tags + "</code>\n+<b>" + _delta + "</b> за последние 60 сек",
+    "parse_mode": "HTML"
+  })
+'''
+
+# Sink
+
+[sinks.telegram]
+type = "http"
+inputs = ["format_log_alert", "format_metric_alert"]
+uri = "https://api.telegram.org/bot${ALERT_BOT_TOKEN}/sendMessage"
+method = "post"
+encoding.codec = "raw_message"
+
+[sinks.telegram.batch]
+max_events = 1
+timeout_secs = 1
+
+[sinks.telegram.request]
+retry_attempts = 3
+headers.Content-Type = "application/json"

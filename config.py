@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     DATABASE_URL: str
     LOG_LEVEL: str = "INFO"
+    METRICS_PORT: int = 9100
 
     model_config = SettingsConfigDict(env_file="deploy/.env", env_file_encoding="utf-8", extra="ignore")
 

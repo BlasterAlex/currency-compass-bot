@@ -12,6 +12,7 @@ from bot.keyboards.inline import (
     currency_search_keyboard,
     empty_currencies_keyboard,
 )
+from bot.metrics import track_command
 from bot.states.currency import CurrencyForm
 from clients.cbr import get_daily_rates
 from services.currency import (
@@ -41,12 +42,13 @@ def _currencies_view(currencies: list) -> tuple[str, object]:
 
 @router.message(Command("currencies"))
 async def cmd_currencies(message: Message, session: AsyncSession, state: FSMContext) -> None:
-    await state.clear()
-    user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
-    await session.commit()
-    currencies = await get_user_currencies(session, user.id)
-    text, markup = _currencies_view(currencies)
-    await message.answer(text, reply_markup=markup)
+    with track_command("currencies"):
+        await state.clear()
+        user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
+        await session.commit()
+        currencies = await get_user_currencies(session, user.id)
+        text, markup = _currencies_view(currencies)
+        await message.answer(text, reply_markup=markup)
 
 
 @router.callback_query(F.data == "currencies:add")
@@ -65,31 +67,33 @@ async def on_currency_search(message: Message, session: AsyncSession) -> None:
     if not query:
         return
 
-    user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
-    await session.commit()
+    with track_command("currencies") as track:
+        user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
+        await session.commit()
 
-    try:
-        matches = await search_cbr_currencies(query)
-    except Exception:
-        logger.exception("CBR search failed query=%r", query)
+        try:
+            matches = await search_cbr_currencies(query)
+        except Exception:
+            track.result = "cbr_error"
+            logger.exception("CBR search failed query=%r", query)
+            await message.answer(
+                "Не удалось получить список валют ЦБ. Попробуйте позже.",
+                reply_markup=cancel_keyboard(),
+            )
+            return
+
+        if not matches:
+            await message.answer(
+                "Ничего не найдено. Попробуйте другой запрос.",
+                reply_markup=cancel_keyboard(),
+            )
+            return
+
+        tracked = {c.code for c in await get_user_currencies(session, user.id)}
         await message.answer(
-            "Не удалось получить список валют ЦБ. Попробуйте позже.",
-            reply_markup=cancel_keyboard(),
+            f"Найдено: {len(matches)}. Выберите валюту:",
+            reply_markup=currency_search_keyboard(matches, tracked),
         )
-        return
-
-    if not matches:
-        await message.answer(
-            "Ничего не найдено. Попробуйте другой запрос.",
-            reply_markup=cancel_keyboard(),
-        )
-        return
-
-    tracked = {c.code for c in await get_user_currencies(session, user.id)}
-    await message.answer(
-        f"Найдено: {len(matches)}. Выберите валюту:",
-        reply_markup=currency_search_keyboard(matches, tracked),
-    )
 
 
 @router.callback_query(F.data == "noop")
@@ -116,35 +120,37 @@ async def on_currency_add(
 ) -> None:
     code = callback.data.split(":", 1)[1]
 
-    try:
-        daily = await get_daily_rates()
-    except Exception:
-        logger.exception("CBR fetch failed on add code=%s", code)
-        await callback.answer("Не удалось получить данные ЦБ.", show_alert=True)
-        return
+    with track_command("currencies") as track:
+        try:
+            daily = await get_daily_rates()
+        except Exception:
+            track.result = "cbr_error"
+            logger.exception("CBR fetch failed on add code=%s", code)
+            await callback.answer("Не удалось получить данные ЦБ.", show_alert=True)
+            return
 
-    rate = daily.rates.get(code)
-    if rate is None:
-        await callback.answer("Неизвестная валюта.", show_alert=True)
-        return
+        rate = daily.rates.get(code)
+        if rate is None:
+            await callback.answer("Неизвестная валюта.", show_alert=True)
+            return
 
-    user = await get_or_create_user(
-        session, callback.from_user.id, callback.from_user.username
-    )
-    await session.commit()
+        user = await get_or_create_user(
+            session, callback.from_user.id, callback.from_user.username
+        )
+        await session.commit()
 
-    currency = await get_or_create_currency(session, rate.code, rate.name)
-    added = await add_user_currency(session, user, currency.id)
-    await state.clear()
+        currency = await get_or_create_currency(session, rate.code, rate.name)
+        added = await add_user_currency(session, user, currency.id)
+        await state.clear()
 
-    if added:
-        currencies = await get_user_currencies(session, user.id)
-        label = currency_label(rate.code, rate.name)
-        text = f"✓ {label} добавлена.\n\n" + _currencies_view(currencies)[0]
-        await callback.message.answer(text, reply_markup=currencies_keyboard(currencies))
-        await callback.answer()
-    else:
-        await callback.answer("Эта валюта уже в списке.", show_alert=True)
+        if added:
+            currencies = await get_user_currencies(session, user.id)
+            label = currency_label(rate.code, rate.name)
+            text = f"✓ {label} добавлена.\n\n" + _currencies_view(currencies)[0]
+            await callback.message.answer(text, reply_markup=currencies_keyboard(currencies))
+            await callback.answer()
+        else:
+            await callback.answer("Эта валюта уже в списке.", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("currency_remove:"))

@@ -5,6 +5,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 from aiogram.utils.backoff import BackoffConfig
+from prometheus_client import start_http_server
 
 from bot.handlers import router
 from bot.middlewares.db import DbSessionMiddleware
@@ -19,10 +20,12 @@ _BOT_COMMANDS = [
     BotCommand(command="start", description="О боте и список команд"),
     BotCommand(command="currencies", description="Управление списком валют"),
     BotCommand(command="rate", description="Текущие курсы ЦБ"),
+    BotCommand(command="chart", description="График курсов ЦБ"),
 ]
 
 
 async def main() -> None:
+    start_http_server(settings.METRICS_PORT)
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),

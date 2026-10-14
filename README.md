@@ -126,7 +126,7 @@ LOG_LEVEL=DEBUG
 METRICS_PORT=9100
 ```
 
-Метрики отдаются на `http://127.0.0.1:9100/metrics`. Сервис `alerts` забирает метрики и логи контейнера и пишет в Telegram.
+Сервис `alerts` забирает метрики и логи контейнера `bot` и пишет в Telegram.
 
 Подробнее: [`deploy/alerts/README.md`](deploy/alerts/README.md).
 

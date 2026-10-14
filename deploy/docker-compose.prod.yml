@@ -32,14 +32,12 @@ services:
     container_name: currency-compass-bot
     image: ghcr.io/blasteralex/currency-compass-bot:latest
     command: ["bot.main"]
-    ports:
-      - "127.0.0.1:9100:9100"
     env_file: .env
     depends_on:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/metrics')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9100/metrics')"]
       interval: 5s
       timeout: 3s
       retries: 5

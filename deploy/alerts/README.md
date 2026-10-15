@@ -11,15 +11,15 @@
 
 ## Transforms
 
-| ID                       | Описание                                                         |
-|--------------------------|------------------------------------------------------------------|
-| `filter_log_errors`      | Логи с `ERROR`, `Exception` или `Traceback`                      |
-| `throttle_log_errors`    | Не больше одного лог-алерта за 5 минут                           |
-| `format_log_alert`       | JSON для Telegram                                                |
-| `filter_error_metrics`   | Счётчики из таблицы ниже                                         |
-| `detect_increases`       | Lua: рост между скрейпами                                        |
-| `throttle_metric_alerts` | Не больше одного алерта на счётчик за 5 минут                    |
-| `format_metric_alert`    | «+N за последние 60 сек»                                         |
+| ID                       | Описание                                      |
+|--------------------------|-----------------------------------------------|
+| `filter_log_errors`      | Строки уровня `ERROR`                         |
+| `throttle_log_errors`    | Не больше одного лог-алерта за 5 минут        |
+| `format_log_alert`       | JSON для Telegram                             |
+| `filter_error_metrics`   | Счётчики из таблицы ниже                      |
+| `detect_increases`       | Lua: рост между скрейпами                     |
+| `throttle_metric_alerts` | Не больше одного алерта на счётчик за 5 минут |
+| `format_metric_alert`    | «+N за последние 60 сек»                      |
 
 ## Отслеживаемые метрики
 

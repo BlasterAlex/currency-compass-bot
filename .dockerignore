@@ -1,0 +1,17 @@
+# Bytecode compiled on the host keeps a Windows path in co_filename.
+# Coverage inside the image then looks for /app/C:/Users/...
+# A pattern without "**/" matches only the build-context root.
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+.git/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+deploy/.env

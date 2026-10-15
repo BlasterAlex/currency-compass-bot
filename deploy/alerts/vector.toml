@@ -15,7 +15,7 @@ scrape_interval_secs = 60
 type = "filter"
 inputs = ["bot_logs"]
 condition.type = "vrl"
-condition.source = "match!(.message, r'ERROR|Exception|Traceback')"
+condition.source = "match!(.message, r' UTC ERROR ')"
 
 [transforms.throttle_log_errors]
 type = "throttle"

@@ -1,4 +1,4 @@
-# Currency Compass Bot
+# CurrencyCompass Bot
 
 <div align="center">
   <img src="assets/logo.png" alt="Currency Compass Bot" width="200"/>

@@ -21,6 +21,7 @@ _BOT_COMMANDS = [
     BotCommand(command="currencies", description="Управление списком валют"),
     BotCommand(command="rate", description="Текущие курсы ЦБ"),
     BotCommand(command="chart", description="График курсов ЦБ"),
+    BotCommand(command="about", description="О проекте и страница Issues"),
 ]
 
 

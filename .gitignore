@@ -221,3 +221,4 @@ __marimo__/
 
 # Codanna local index and machine-specific settings
 .codanna/
+.fastembed_cache

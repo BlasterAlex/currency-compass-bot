@@ -45,18 +45,5 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  alerts:
-    container_name: currency-compass-alerts
-    image: timberio/vector:0.42.0-alpine
-    command: ["--config", "/etc/vector/vector.toml"]
-    volumes:
-      - ./alerts/vector.toml:/etc/vector/vector.toml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    env_file: .env
-    depends_on:
-      bot:
-        condition: service_healthy
-    restart: unless-stopped
-
 volumes:
   postgres_data:
